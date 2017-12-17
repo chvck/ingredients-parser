@@ -12,13 +12,14 @@ import (
 	"os/exec"
 	"syscall"
 	"bytes"
+	"errors"
 )
 
 
-// CrfppParser parses a set of ingredients by using crfpp (https://github.com/taku910/crfpp).
+// crfppParser parses a set of ingredients by using crfpp (https://github.com/taku910/crfpp).
 // This parser implementation requires crf++ to be installed and is expensive
 // due to calling out to crf_test which writes a file which must then be read and interpreted.
-type CrfppParser struct {
+type crfppParser struct {
 	config config
 }
 
@@ -29,19 +30,31 @@ type config struct {
 
 var execCommand = exec.Command
 
-// SetConfig sets the parser up ready for use. CrfppParser expects the config to contain
+// setConfig sets the parser up ready for use. crfppParser expects the config to contain
 // the path to the model file.
-func (p *CrfppParser) SetConfig(data []byte) error {
+func (p *crfppParser) setConfig(data []byte) error {
 	var cf config
-	if err := json.Unmarshal(data, cf); err != nil {
+	if err := json.Unmarshal(data, &cf); err != nil {
 		return err
 	}
+
+	p.config = cf
+
 	return nil
+}
+
+// isConfigured returns whether not the parse has been setup
+func (p crfppParser) isConfigured() bool {
+	return p.config.ModelFilePath != ""
 }
 
 // Parse accepts a human readable list of ingredients and returns a slice of Ingredient.
 // Example Input: 1 cup sugar\n500 grams flour
-func (p *CrfppParser) Parse(ingredientsStr string) ([]ingredient.Ingredient, error) {
+func (p crfppParser) Parse(ingredientsStr string) ([]ingredient.Ingredient, error) {
+	if !p.isConfigured() {
+		return nil, errors.New("parser has not been configured")
+	}
+
 	// we have to convert the ingredients string to a format the crfpp recognises
 	formatted := toCrfppFormat(ingredientsStr)
 

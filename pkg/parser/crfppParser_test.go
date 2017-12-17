@@ -26,7 +26,7 @@ func TestCrfppParser_Parse(t *testing.T) {
 	config := &config{}
 	config.ModelFilePath = modelPath
 
-	parser := &CrfppParser{}
+	parser := &crfppParser{}
 	parser.config = *config
 
 	ingredients, err := parser.Parse("1 1/2 teaspoon fresh thyme leaves, finely chopped\n" +
@@ -49,7 +49,7 @@ func TestCrfppParser_ParseError(t *testing.T) {
 	config := &config{}
 	config.ModelFilePath = modelPath
 
-	parser := &CrfppParser{}
+	parser := &crfppParser{}
 	parser.config = *config
 
 	ingredients, err := parser.Parse("1 1/2 teaspoon fresh thyme leaves, finely chopped")
@@ -73,6 +73,25 @@ flour	I3	L20	NoCAP	NoPAREN
 	assert.Equal(t, expected, output)
 }
 
+func TestCrfppParser_setConfig(t *testing.T) {
+	parser := &crfppParser{}
+	err := parser.setConfig([]byte(`{"modelfilepath": "/path/to/file"}`))
+
+	assert.Nil(t, err)
+	assert.Equal(t, "/path/to/file", parser.config.ModelFilePath)
+}
+
+func TestCrfppParser_isConfigured(t *testing.T) {
+	parser := &crfppParser{}
+	parser.setConfig([]byte(`{"modelfilepath": "/path/to/file"}`))
+
+	assert.True(t, parser.isConfigured())
+}
+
+func TestCrfppParser_isConfiguredFalse(t *testing.T) {
+	parser := &crfppParser{}
+	assert.False(t, parser.isConfigured())
+}
 
 func TestHelperProcessSucceed(t *testing.T){
 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
