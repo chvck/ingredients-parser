@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"bytes"
 	"errors"
+	"github.com/kljensen/snowball"
 )
 
 
@@ -115,7 +116,11 @@ func (p crfppParser) createIngredientsFromCrfpp(crfppOutput string) []ingredient
 			//confidence := split[1]
 
 			if tag == unit {
-				ing.SetUnit(token)
+				singled, err := singularize(token)
+				if err != nil {
+					singled = token
+				}
+				ing.SetUnit(singled)
 			} else if tag == quantity {
 				ing.SetQuantity(token)
 			} else if tag == name {
@@ -282,4 +287,9 @@ func hideFractions(s string) string {
 func unhideFractions(s string) string {
 	re := regexp.MustCompile(`(\d+)£(\d)`)
 	return re.ReplaceAllString(s, "$1/$2")
+}
+
+// singularize normalizes plurals into singulars
+func singularize(s string) (string, error) {
+	return snowball.Stem(s, "english", true)
 }

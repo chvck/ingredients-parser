@@ -39,9 +39,9 @@ func TestCrfppParser_Parse(t *testing.T) {
 	assert.Equal(t, 3, len(ingredients))
 	assertIngredient(t, ingredients[0], []string{"thyme", "leaves"}, "teaspoon", "1 1/2",
 	[]string{"fresh", ",", "finely", "chopped"})
-	assertIngredient(t, ingredients[1], []string{"sherry", "vinegar"}, "tablespoons", "2",
+	assertIngredient(t, ingredients[1], []string{"sherry", "vinegar"}, "tablespoon", "2",
 		[]string{""})
-	assertIngredient(t, ingredients[2], []string{"olive", "oil"}, "tablespoons", "2",
+	assertIngredient(t, ingredients[2], []string{"olive", "oil"}, "tablespoon", "2",
 		[]string{"extra-virgin"})
 }
 
