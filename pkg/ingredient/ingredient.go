@@ -1,13 +1,18 @@
 // Package ingredient contains the base Ingredient type.
 package ingredient
 
+import (
+	"fmt"
+	"strings"
+)
+
 // Ingredient is the representation of an individual ingredient + info as a part of a recipe.
 // e.g. 100 grams tomatoes, diced.
 type Ingredient struct {
 	unit string
-	name string
+	names []string
 	quantity string
-	notes string
+	notes []string
 }
 
 // SetUnit sets the unit aspect of the ingredient, e.g. gram.
@@ -16,9 +21,9 @@ func (i *Ingredient) SetUnit(unit string) *Ingredient {
 	return i
 }
 
-// SetName sets the name of the ingredient, e.g. tomato.
-func (i *Ingredient) SetName(name string) *Ingredient {
-	i.name = name
+// AddName add a name for the ingredient, e.g. tomato.
+func (i *Ingredient) AddName(name string) *Ingredient {
+	i.names = append(i.names, name)
 	return i
 }
 
@@ -28,28 +33,33 @@ func (i *Ingredient) SetQuantity(quantity string) *Ingredient {
 	return i
 }
 
-// SetNotes sets any notes for the ingredient, e.g. diced.
-func (i *Ingredient) SetNotes(notes string) *Ingredient {
-	i.notes = notes
+// AddNotes add a note for the ingredient, e.g. diced.
+func (i *Ingredient) AddNote(note string) *Ingredient {
+	i.notes = append(i.notes, note)
 	return i
 }
 
 // Unit gets the unit aspect of the ingredient, e.g. gram.
-func (i *Ingredient) Unit() string {
+func (i Ingredient) Unit() string {
 	return i.unit
 }
 
 // Name gets the name of the ingredient, e.g. tomato.
-func (i *Ingredient) Name() string {
-	return i.name
+func (i Ingredient) Name() []string {
+	return i.names
 }
 
 // Quantity gets the quantity of the ingredient, e.g. 100.
-func (i *Ingredient) Quantity() string {
+func (i Ingredient) Quantity() string {
 	return i.quantity
 }
 
 // Notes gets any notes for the ingredient, e.g. diced.
-func (i *Ingredient) Notes() string {
+func (i Ingredient) Notes() []string {
 	return i.notes
+}
+
+func (i Ingredient) String() string {
+	return fmt.Sprintf("%s %s %s, %s",i.quantity, i.unit, strings.Join(i.names, " "),
+		strings.Join(i.notes, " "))
 }
