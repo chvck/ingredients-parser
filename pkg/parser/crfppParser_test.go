@@ -25,6 +25,9 @@ func TestCrfppParser_Parse(t *testing.T) {
 	modelPath := "/path/to/model"
 	config := &config{}
 	config.ModelFilePath = modelPath
+	config.Unit = "unit"
+	config.Name = "name"
+	config.Quantity = "qty"
 
 	parser := &crfppParser{}
 	parser.config = *config
@@ -48,6 +51,10 @@ func TestCrfppParser_ParseError(t *testing.T) {
 	modelPath := "/path/to/model"
 	config := &config{}
 	config.ModelFilePath = modelPath
+	config.Unit = "unit"
+	config.Name = "name"
+	config.Quantity = "qty"
+
 
 	parser := &crfppParser{}
 	parser.config = *config
@@ -75,7 +82,8 @@ flour	I3	L20	NoCAP	NoPAREN
 
 func TestCrfppParser_setConfig(t *testing.T) {
 	parser := &crfppParser{}
-	err := parser.setConfig([]byte(`{"modelfilepath": "/path/to/file"}`))
+	err := parser.setConfig([]byte(`{"modelfilepath": "/path/to/file", "unit": "unit",
+		"quantity": "qty", "name": "name"}`))
 
 	assert.Nil(t, err)
 	assert.Equal(t, "/path/to/file", parser.config.ModelFilePath)
@@ -83,7 +91,14 @@ func TestCrfppParser_setConfig(t *testing.T) {
 
 func TestCrfppParser_isConfigured(t *testing.T) {
 	parser := &crfppParser{}
-	parser.setConfig([]byte(`{"modelfilepath": "/path/to/file"}`))
+	modelPath := "/path/to/model"
+	config := &config{}
+	config.ModelFilePath = modelPath
+	config.Unit = "unit"
+	config.Name = "name"
+	config.Quantity = "qty"
+
+	parser.config = *config
 
 	assert.True(t, parser.isConfigured())
 }

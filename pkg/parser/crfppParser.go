@@ -26,6 +26,9 @@ type crfppParser struct {
 // config is a set of configuration values for use during parsing
 type config struct {
 	ModelFilePath string `json:"modelfilepath"`
+	Unit string `json:"unit"`
+	Name string `json:"name"`
+	Quantity string `json:"quantity"`
 }
 
 var execCommand = exec.Command
@@ -70,7 +73,7 @@ func (p crfppParser) Parse(ingredientsStr string) ([]ingredient.Ingredient, erro
 		return nil, fmt.Errorf("%s", err.Error())
 	}
 
-	return createIngredientsFromCrfpp(crfppOutput), nil
+	return p.createIngredientsFromCrfpp(crfppOutput), nil
 }
 
 
@@ -83,10 +86,13 @@ cup	I2	L20	NoCAP	NoPAREN	B-UNIT/0.978106
 sugar	I3	L20	NoCAP	NoPAREN	B-NAME/0.984194
 
  */
-func createIngredientsFromCrfpp(crfppOutput string) []ingredient.Ingredient {
+func (p crfppParser) createIngredientsFromCrfpp(crfppOutput string) []ingredient.Ingredient {
 	var ing ingredient.Ingredient
 	var ingredients []ingredient.Ingredient
 	newIng := false
+	unit := p.unit()
+	quantity := p.quantity()
+	name := p.name()
 	re := regexp.MustCompile(`^[BI]\-`)
 	for _, line := range strings.Split(crfppOutput, "\n") {
 		if strings.HasPrefix(line, "#") {
@@ -108,11 +114,11 @@ func createIngredientsFromCrfpp(crfppOutput string) []ingredient.Ingredient {
 			tag = strings.ToLower(tag)
 			//confidence := split[1]
 
-			if tag == "unit" {
+			if tag == unit {
 				ing.SetUnit(token)
-			} else if tag == "qty" {
+			} else if tag == quantity {
 				ing.SetQuantity(token)
-			} else if tag == "name" {
+			} else if tag == name {
 				ing.AddName(token)
 			} else {
 				ing.AddNote(token)
@@ -121,6 +127,36 @@ func createIngredientsFromCrfpp(crfppOutput string) []ingredient.Ingredient {
 	}
 
 	return ingredients
+}
+
+// unit returns the unit value in config, or "unit" if nothing set
+func (p crfppParser) unit() string {
+	unit := p.config.Unit
+	if unit == "" {
+		unit = "unit"
+	}
+
+	return unit
+}
+
+// name returns the name value in config, or "unit" if nothing set
+func (p crfppParser) name() string {
+	name := p.config.Name
+	if name == "" {
+		name = "name"
+	}
+
+	return name
+}
+
+// quantity returns the quantity value in config, or "unit" if nothing set
+func (p crfppParser) quantity() string {
+	quantity := p.config.Quantity
+	if quantity == "" {
+		quantity = "qty"
+	}
+
+	return quantity
 }
 
 // execute executes the given command and returns the output from Stdout.

@@ -14,6 +14,17 @@ To create a parser use `parser.NewParser` passing in a json byte array containin
 as `modelfilepath` and the type of parser, in this case `crfppParser` as `parsertype`.
 e.g. `parser.NewParser([]byte({"parsertype": "crfppParser", "modelfilepath": "/path/to/model"}))`.
 
+The config passed to the crfpp parser also accepts `unit`, `quantity` and `name` fields. The values of these correspond
+to the features in the crfpp output. If these aren't present in the config then they will default to the following values:
+
+`unit`: `unit`
+
+`quantity`: `qty`
+
+`name`: `name`
+
+Any feature with that name outside of these three will stored in the Ingredient as a `note`.
+
 Functionality to assist in creating a model file coming soon.
 
 Credits
