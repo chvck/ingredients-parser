@@ -9,30 +9,26 @@ import (
 	"strings"
 	"io/ioutil"
 	"os"
-	"os/exec"
-	"syscall"
-	"bytes"
 	"errors"
 	"github.com/kljensen/snowball"
+	"github.com/chvck/ingredients-parser/internal/crfpp"
 )
-
 
 // crfppParser parses a set of ingredients by using crfpp (https://github.com/taku910/crfpp).
 // This parser implementation requires crf++ to be installed and is expensive
 // due to calling out to crf_test which writes a file which must then be read and interpreted.
 type crfppParser struct {
 	config config
+	tagger crfpp.ITagger
 }
 
 // config is a set of configuration values for use during parsing
 type config struct {
 	ModelFilePath string `json:"modelfilepath"`
-	Unit string `json:"unit"`
-	Name string `json:"name"`
-	Quantity string `json:"quantity"`
+	Unit          string `json:"unit"`
+	Name          string `json:"name"`
+	Quantity      string `json:"quantity"`
 }
-
-var execCommand = exec.Command
 
 // setConfig sets the parser up ready for use. crfppParser expects the config to contain
 // the path to the model file.
@@ -43,6 +39,7 @@ func (p *crfppParser) setConfig(data []byte) error {
 	}
 
 	p.config = cf
+	p.tagger = crfpp.Tagger{}
 
 	return nil
 }
@@ -68,15 +65,13 @@ func (p crfppParser) Parse(ingredientsStr string) ([]ingredient.Ingredient, erro
 	}
 	defer os.Remove(filename)
 
-	cmd := execCommand("crf_test", "-v", "1", "-m", p.config.ModelFilePath, filename)
-	crfppOutput, err := execute(cmd)
+	crfppOutput, err := p.tagger.Test(p.config.ModelFilePath, filename)
 	if err != nil {
-		return nil, fmt.Errorf("%s", err.Error())
+		return nil, err
 	}
 
 	return p.createIngredientsFromCrfpp(crfppOutput), nil
 }
-
 
 /*
 createIngredientsFromCrfpp converts a crfpp output into a slice of Ingredient.
@@ -110,7 +105,7 @@ func (p crfppParser) createIngredientsFromCrfpp(crfppOutput string) []ingredient
 			token := strings.Trim(columns[0], " ")
 			token = unclumpFractions(token)
 
-			split := strings.Split(columns[len(columns) - 1], "/")
+			split := strings.Split(columns[len(columns)-1], "/")
 			tag := re.ReplaceAllString(split[0], "")
 			tag = strings.ToLower(tag)
 			//confidence := split[1]
@@ -164,21 +159,6 @@ func (p crfppParser) quantity() string {
 	return quantity
 }
 
-// execute executes the given command and returns the output from Stdout.
-func execute(cmd *exec.Cmd) (string, error) {
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-
-	cmdOutput := &bytes.Buffer{}
-	cmd.Stdout = cmdOutput
-	cmd.Stderr = cmdOutput
-
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("%s, %s", err.Error(), cmdOutput.Bytes())
-	}
-
-	return string(cmdOutput.Bytes()), nil
-}
-
 /*
 toCrfppFormat converts a human readable list of ingredients to an input that crfpp expects.
 Example Input: 1 cup sugar\n500 grams flour
@@ -198,7 +178,7 @@ func toCrfppFormat(ingredients string) string {
 		tokens := tokenise(cleaned)
 
 		for i, token := range tokens {
-			features := getFeatures(token, i + 1, tokens)
+			features := getFeatures(token, i+1, tokens)
 			combined := strings.Join(append([]string{token}, features...), "\t")
 			parsed = append(parsed, combined)
 		}
@@ -274,7 +254,6 @@ func unclumpFractions(s string) string {
 	re := regexp.MustCompile(`(\d+)!(\d)\/(\d)`)
 	return re.ReplaceAllString(s, "$1 $2/$3")
 }
-
 
 // hideFractions replaces the slash in fractions with a £.
 func hideFractions(s string) string {

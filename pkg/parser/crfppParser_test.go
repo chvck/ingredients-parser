@@ -3,116 +3,18 @@ package parser
 import (
 	"testing"
 	"github.com/stretchr/testify/assert"
-	"os/exec"
-	"os"
-	"fmt"
 	"github.com/chvck/ingredients-parser/pkg/ingredient"
+	"errors"
 )
 
-func fakeExecCommand(funct string) func(command string, args...string) *exec.Cmd {
-	return func(command string, args...string) *exec.Cmd {
-		cs := []string{"-test.run="+funct, "--", command}
-		cs = append(cs, args...)
-		cmd := exec.Command(os.Args[0], cs...)
-		cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
-		return cmd
-	}
+type FakeTaggerSuccess struct {
 }
 
-func TestCrfppParser_Parse(t *testing.T) {
-	execCommand = fakeExecCommand("TestHelperProcessSucceed")
-	defer func(){ execCommand = exec.Command }()
-	modelPath := "/path/to/model"
-	config := &config{}
-	config.ModelFilePath = modelPath
-	config.Unit = "unit"
-	config.Name = "name"
-	config.Quantity = "qty"
-
-	parser := &crfppParser{}
-	parser.config = *config
-
-	ingredients, err := parser.Parse("1 1/2 teaspoon fresh thyme leaves, finely chopped\n" +
-		"2 tablespoons sherry vinegar\n2 tablespoons extra-virgin olive oil")
-
-	assert.Nil(t, err)
-	assert.Equal(t, 3, len(ingredients))
-	assertIngredient(t, ingredients[0], []string{"thyme", "leaves"}, "teaspoon", "1 1/2",
-	[]string{"fresh", ",", "finely", "chopped"})
-	assertIngredient(t, ingredients[1], []string{"sherry", "vinegar"}, "tablespoon", "2",
-		[]string{""})
-	assertIngredient(t, ingredients[2], []string{"olive", "oil"}, "tablespoon", "2",
-		[]string{"extra-virgin"})
+type FakeTaggerFail struct {
 }
 
-func TestCrfppParser_ParseError(t *testing.T) {
-	execCommand = fakeExecCommand("TestHelperProcessFail")
-	defer func(){ execCommand = exec.Command }()
-	modelPath := "/path/to/model"
-	config := &config{}
-	config.ModelFilePath = modelPath
-	config.Unit = "unit"
-	config.Name = "name"
-	config.Quantity = "qty"
-
-
-	parser := &crfppParser{}
-	parser.config = *config
-
-	ingredients, err := parser.Parse("1 1/2 teaspoon fresh thyme leaves, finely chopped")
-
-	assert.Error(t, err)
-	assert.Nil(t, ingredients)
-}
-
-// toCrfppFormat is really difficult to test as a part of testing the Parser function
-func TestCrfppParser_toCrfppFormat(t *testing.T) {
-	output := toCrfppFormat("1 1/2 cup sugar\n500 grams flour")
-	expected := `1!1/2	I1	L20	NoCAP	NoPAREN
-cup	I2	L20	NoCAP	NoPAREN
-sugar	I3	L20	NoCAP	NoPAREN
-
-500	I1	L20	NoCAP	NoPAREN
-grams	I2	L20	NoCAP	NoPAREN
-flour	I3	L20	NoCAP	NoPAREN
-`
-
-	assert.Equal(t, expected, output)
-}
-
-func TestCrfppParser_setConfig(t *testing.T) {
-	parser := &crfppParser{}
-	err := parser.setConfig([]byte(`{"modelfilepath": "/path/to/file", "unit": "unit",
-		"quantity": "qty", "name": "name"}`))
-
-	assert.Nil(t, err)
-	assert.Equal(t, "/path/to/file", parser.config.ModelFilePath)
-}
-
-func TestCrfppParser_isConfigured(t *testing.T) {
-	parser := &crfppParser{}
-	modelPath := "/path/to/model"
-	config := &config{}
-	config.ModelFilePath = modelPath
-	config.Unit = "unit"
-	config.Name = "name"
-	config.Quantity = "qty"
-
-	parser.config = *config
-
-	assert.True(t, parser.isConfigured())
-}
-
-func TestCrfppParser_isConfiguredFalse(t *testing.T) {
-	parser := &crfppParser{}
-	assert.False(t, parser.isConfigured())
-}
-
-func TestHelperProcessSucceed(t *testing.T){
-	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
-		return
-	}
-	fmt.Fprint(os.Stdout,`# 0.148792
+func (f FakeTaggerSuccess) Test(modelFilePath string, dataFilePath string) (string, error) {
+	return `# 0.148792
 1!1/2	I1	L20	NoCAP	NoPAREN	B-QTY/0.522172
 teaspoon	I2	L20	NoCAP	NoPAREN	B-UNIT/0.978515
 fresh	I3	L20	NoCAP	NoPAREN	B-COMMENT/0.738304
@@ -135,18 +37,98 @@ tablespoons	I2	L8	NoCAP	NoPAREN	B-UNIT/0.998844
 extra-virgin	I3	L8	NoCAP	NoPAREN	B-COMMENT/0.864063
 olive	I4	L8	NoCAP	NoPAREN	B-NAME/0.884804
 oil	I5	L8	NoCAP	NoPAREN	I-NAME/0.997967
-`)
-	os.Exit(0)
+`, nil
 }
 
-
-func TestHelperProcessFail(t *testing.T){
-	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
-		return
-	}
-	fmt.Fprint(os.Stdout, "feature_index.cpp(193) [mmap_.open(model_filename)] mmap.h(153) " +
+func (f FakeTaggerFail) Test(modelFilePath string, dataFilePath string) (string, error) {
+	return "", errors.New("feature_index.cpp(193) [mmap_.open(model_filename)] mmap.h(153) " +
 		"[(fd = ::open(filename, flag | O_BINARY)) >= 0] open failed: file")
-	os.Exit(-1)
+}
+
+func TestCrfppParser_Parse(t *testing.T) {
+	modelPath := "/path/to/model"
+	config := &config{}
+	config.ModelFilePath = modelPath
+	config.Unit = "unit"
+	config.Name = "name"
+	config.Quantity = "qty"
+
+	p := &crfppParser{}
+	p.config = *config
+	p.tagger = FakeTaggerSuccess{}
+
+	ingredients, err := p.Parse("1 1/2 teaspoon fresh thyme leaves, finely chopped\n" +
+		"2 tablespoons sherry vinegar\n2 tablespoons extra-virgin olive oil")
+
+	assert.Nil(t, err)
+	assert.Equal(t, 3, len(ingredients))
+	assertIngredient(t, ingredients[0], []string{"thyme", "leaves"}, "teaspoon", "1 1/2",
+		[]string{"fresh", ",", "finely", "chopped"})
+	assertIngredient(t, ingredients[1], []string{"sherry", "vinegar"}, "tablespoon", "2",
+		[]string{""})
+	assertIngredient(t, ingredients[2], []string{"olive", "oil"}, "tablespoon", "2",
+		[]string{"extra-virgin"})
+}
+
+func TestCrfppParser_ParseError(t *testing.T) {
+	modelPath := "/path/to/model"
+	config := &config{}
+	config.ModelFilePath = modelPath
+	config.Unit = "unit"
+	config.Name = "name"
+	config.Quantity = "qty"
+
+	p := &crfppParser{}
+	p.config = *config
+	p.tagger = FakeTaggerFail{}
+
+	ingredients, err := p.Parse("1 1/2 teaspoon fresh thyme leaves, finely chopped")
+
+	assert.Error(t, err)
+	assert.Nil(t, ingredients)
+}
+
+// toCrfppFormat is really difficult to test as a part of testing the IParser function
+func TestCrfppParser_toCrfppFormat(t *testing.T) {
+	output := toCrfppFormat("1 1/2 cup sugar\n500 grams flour")
+	expected := `1!1/2	I1	L20	NoCAP	NoPAREN
+cup	I2	L20	NoCAP	NoPAREN
+sugar	I3	L20	NoCAP	NoPAREN
+
+500	I1	L20	NoCAP	NoPAREN
+grams	I2	L20	NoCAP	NoPAREN
+flour	I3	L20	NoCAP	NoPAREN
+`
+
+	assert.Equal(t, expected, output)
+}
+
+func TestCrfppParser_setConfig(t *testing.T) {
+	p := &crfppParser{}
+	err := p.setConfig([]byte(`{"modelfilepath": "/path/to/file", "unit": "unit",
+		"quantity": "qty", "name": "name"}`))
+
+	assert.Nil(t, err)
+	assert.Equal(t, "/path/to/file", p.config.ModelFilePath)
+}
+
+func TestCrfppParser_isConfigured(t *testing.T) {
+	p := &crfppParser{}
+	modelPath := "/path/to/model"
+	config := &config{}
+	config.ModelFilePath = modelPath
+	config.Unit = "unit"
+	config.Name = "name"
+	config.Quantity = "qty"
+
+	p.config = *config
+
+	assert.True(t, p.isConfigured())
+}
+
+func TestCrfppParser_isConfiguredFalse(t *testing.T) {
+	p := &crfppParser{}
+	assert.False(t, p.isConfigured())
 }
 
 func assertIngredient(t *testing.T, ingredient ingredient.Ingredient, n []string, u string, q string, no []string) {

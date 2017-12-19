@@ -8,8 +8,8 @@ import (
 	"encoding/json"
 )
 
-// Parser is the interface that wraps the basic Parse method.
-type Parser interface {
+// IParser is the interface that wraps the basic Parse method.
+type IParser interface {
 	isConfigured() bool
 	Parse(ingredients string) ([]ingredient.Ingredient, error)
 }
@@ -18,7 +18,7 @@ type parserConfig struct {
 	ParserType string `json:"parsertype"`
 }
 
-func NewParser(data []byte) (Parser, error) {
+func NewParser(data []byte) (IParser, error) {
 	var cf parserConfig
 	if err := json.Unmarshal(data, &cf); err != nil {
 		return nil, err
@@ -31,7 +31,7 @@ func NewParser(data []byte) (Parser, error) {
 	return parser, nil
 }
 
-func stringToStruct(name string, data []byte) (Parser, error) {
+func stringToStruct(name string, data []byte) (IParser, error) {
 	switch name {
 	case "crfppParser":
 		parser := crfppParser{}
